@@ -1,93 +1,74 @@
 import sqlite3
-import database  # Import modul database biar bisa dipake di main.py
+import random
 
-# Nama file database
-DB_NAME = "itsuki.db"
+DB_NAME = "itsuki_data.db"
 
-def initialize_db():
-    """Bikin tabel kalau belum ada."""
+def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-
-    # 1. Bikin Tabel Users (Simpan Duit & XP)
+    # Bikin tabel reputasi kalau belum ada
     c.execute('''
-        CREATE TABLE IF NOT EXISTS users (
+        CREATE TABLE IF NOT EXISTS user_status (
             user_id INTEGER PRIMARY KEY,
-            money INTEGER DEFAULT 0,
-            xp INTEGER DEFAULT 0
+            reputation INTEGER DEFAULT 0,
+            title TEXT DEFAULT 'NPC Biasa'
         )
     ''')
-
-    # 2. Bikin Tabel Inventory (Simpan Item Gacha)
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS inventory (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            item_name TEXT,
-            rarity TEXT,
-            amount INTEGER DEFAULT 1,
-            FOREIGN KEY(user_id) REFERENCES users(user_id)
-        )
-    ''')
-
     conn.commit()
     conn.close()
-    print(f"✅ Database {DB_NAME} siap digunakan!")
+    print("✅ Database Reputation siap!")
 
-# --- FUNGSI BANTUAN BUAT EKONOMI ---
-
-def register_user(user_id):
-    """Daftarin user baru ke database kalau belum ada"""
+def get_user_data(user_id):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    # Cek dulu ada ga
-    c.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
-    if c.fetchone() is None:
-        c.execute("INSERT INTO users (user_id, money, xp) VALUES (?, 100, 0)", (user_id,)) # Modal awal 100
-        conn.commit()
-        print(f"User {user_id} terdaftar.")
-    conn.close()
-
-def get_data(user_id):
-    """Ambil data uang & xp user"""
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT money, xp FROM users WHERE user_id = ?", (user_id,))
+    c.execute("SELECT reputation, title FROM user_status WHERE user_id = ?", (user_id,))
     data = c.fetchone()
     conn.close()
-    return data # Balikkin (money, xp) atau None
-
-def update_money(user_id, amount):
-    """Tambah atau kurang uang (pakai minus buat ngurangin)"""
-    register_user(user_id) # Jaga-jaga kalau user belum terdaftar
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE users SET money = money + ? WHERE user_id = ?", (amount, user_id))
-    conn.commit()
-    conn.close()
-
-# --- FUNGSI BANTUAN BUAT INVENTORY/GACHA ---
-
-def add_item(user_id, item_name, rarity):
-    """Masukin item ke inventory"""
-    register_user(user_id)
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
     
-    # Cek user udah punya item ini belum?
-    c.execute("SELECT amount FROM inventory WHERE user_id = ? AND item_name = ?", (user_id, item_name))
-    result = c.fetchone()
-    
-    if result:
-        # Kalau udah punya, tambah jumlahnya
-        c.execute("UPDATE inventory SET amount = amount + 1 WHERE user_id = ? AND item_name = ?", (user_id, item_name))
+    if data:
+        return data # Balikin (reputation, title)
     else:
-        # Kalau belum, bikin baris baru
-        c.execute("INSERT INTO inventory (user_id, item_name, rarity, amount) VALUES (?, ?, ?, 1)", (user_id, item_name, rarity))
+        # Kalau user baru, daftarin dulu
+        register_user(user_id)
+        return (0, "NPC Biasa")
+
+def register_user(user_id):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    # Judul awal random
+    titles = ["NPC Biasa", "Warga Baru", "Kang Pantau", "Fans Itsuki"]
+    initial_title = random.choice(titles)
     
-    conn.commit()
+    try:
+        c.execute("INSERT INTO user_status (user_id, reputation, title) VALUES (?, 0, ?)", (user_id, initial_title))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        pass # Udah terdaftar
     conn.close()
 
-# Biar bisa dites langsung (Optional)
-if __name__ == "__main__":
-    initialize_db()
+def change_reputation(user_id, amount):
+    # Update reputasi (bisa nambah atau kurang)
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    
+    # Pastikan user ada dulu
+    get_user_data(user_id) 
+    
+    c.execute("UPDATE user_status SET reputation = reputation + ? WHERE user_id = ?", (amount, user_id))
+    conn.commit()
+    
+    # Cek level buat update Title otomatis
+    c.execute("SELECT reputation FROM user_status WHERE user_id = ?", (user_id,))
+    new_rep = c.fetchone()[0]
+    
+    new_title = None
+    if new_rep <= -10: new_title = "Beban Server 🤡"
+    elif new_rep >= 10 and new_rep < 50: new_title = "Warga Teladan 😇"
+    elif new_rep >= 50: new_title = "Sepuh Server 👑"
+    
+    if new_title:
+        c.execute("UPDATE user_status SET title = ? WHERE user_id = ?", (new_title, user_id))
+        conn.commit()
+        
+    conn.close()
+    return new_rep
