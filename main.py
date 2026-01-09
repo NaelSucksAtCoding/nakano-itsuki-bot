@@ -23,6 +23,16 @@ class ItsukiBot(commands.Bot):
 
 bot = ItsukiBot()
 
+@bot.tree.error
+async def on_tree_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.TransformerError):
+        await interaction.response.send_message(
+            f"❌ **Error:** User gak ketemu bro. Pastikan lu pilih user dari list yang muncul, jangan ketik manual doang.", 
+            ephemeral=True
+        )
+    else:
+        print(f"⚠️ Error lain: {error}")
+
 # --- DATA (DARI KODE PERTAMA - TIDAK DIUBAH) ---
 ROAST_LIST = [
     "Muka lu kayak gorengan dingin, berminyak tapi gak ada yang mau.",
@@ -631,6 +641,88 @@ async def hina(interaction: discord.Interaction, user: discord.Member):
     ]
     
     await interaction.followup.send(f"{interaction.user.mention} menghina {user.mention}: *\"{random.choice(hinaan_list)}\"* \n(Reputasi {user.name} turun jadi {new_rep})")
+
+## COMPLAIN (Itsuki Ngeluh)
+@bot.tree.command(name="complain", description="Itsuki lagi ngeluh. Jangan banyak tanya.")
+async def complain(interaction: discord.Interaction):
+    await interaction.response.defer()
+
+    complains = [
+        "Capek. Kalian ribut mulu dari tadi.",
+        "Kenapa sih semua orang hari ini nyebelin?",
+        "Laper… tapi males keluar.",
+        "Gue pengen tenang sebentar. Bisa gak?",
+        "Server rame tapi isinya bikin pusing.",
+        "Bukan marah… cuma kesel aja.",
+        "Hari ini gak ada yang beres.",
+        "Gue butuh makan. Sekarang.",
+        "Pengen meatbun, tapi duit abis.",
+        "Jangan ganggu, lagi badmood."
+    ]
+
+    # Pake Embed biar rapi
+    embed = discord.Embed(description=f"😒 **Itsuki:** {random.choice(complains)}", color=discord.Color.light_grey())
+    await interaction.followup.send(embed=embed)
+
+## CONFESS (Nembak Itsuki + GIF Blush)
+@bot.tree.command(name="confess", description="Nyoba nembak Itsuki (resiko ditanggung sendiri)")
+async def confess(interaction: discord.Interaction):
+    await interaction.response.defer()
+
+    responses = [
+        "Hah?! Jangan ngaco!",
+        "Ngapain sih tiba-tiba ngomong gitu!",
+        "Gue gak bilang nolak… tapi juga gak nerima!",
+        "Jangan GR dulu. Gue cuma kaget doang.",
+        "B-bukan berarti gue seneng ya!",
+        "Heh… ngomong gitu tuh bikin orang bingung tau.",
+        "Lu tau gak sih timing?",
+        "…… idiot."
+    ]
+
+    embed = discord.Embed(
+        description=f"😳 **Itsuki:** {random.choice(responses)}", 
+        color=discord.Color.brand_red()
+    )
+    
+    # KITA SAMBUNG KE GIF BLUSH YANG UDAH ADA DI FITUR SEBELUMNYA
+    if "blush" in GIFS:
+        embed.set_image(url=random.choice(GIFS["blush"]))
+
+    await interaction.followup.send(embed=embed)
+
+## NICKNAME (Versi Simple)
+@bot.tree.command(name="nickname", description="Itsuki ngasih julukan ke seseorang")
+async def nickname(interaction: discord.Interaction, user: discord.Member):
+    await interaction.response.defer()
+
+    # Cek kalo narget diri sendiri
+    if user.id == interaction.user.id:
+        await interaction.followup.send("Ngasih julukan ke diri sendiri? Aneh lu.", ephemeral=True)
+        return
+
+    nicknames = [
+        "Berisik",
+        "Si Laper",
+        "NPC Server",
+        "Beban Ringan",
+        "Anak Kos",
+        "Paling Ribut",
+        "Figuran",
+        "Orang Aneh",
+        "Kang Drama",
+        "Si Paling Anime",
+        "Badut",
+        "Wibu Wangy"
+    ]
+
+    chosen = random.choice(nicknames)
+
+    embed = discord.Embed(
+        description=f"Mulai hari ini, gue panggil lu **{chosen}** ya, {user.mention}. Jangan protes.",
+        color=discord.Color.blue()
+    )
+    await interaction.followup.send(embed=embed)
 
 # RUN
 bot.run(os.getenv('DISCORD_TOKEN'))
